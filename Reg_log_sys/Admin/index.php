@@ -1,16 +1,15 @@
 <?php
 session_start();
-if(isset($_SESSION['user'])){
-    if($_SESSION['user']->role === "admin"){
-        echo"<h1>Welcome ".ucfirst($_SESSION['user']->name)."</h1>";
-    }else{
-        header("location:../login.php",true);
-        die("");
-    }
-}else{
-    header("location:../login.php",true);
-        die("");
+
+function checkUser($session){
+    if(!isset($session['user'] && !$session['user']->role === "admin") 
+       header("location:../login.php",true);
+       return "";
+    return "<h1>Welcome ".ucfirst($session['user']->name)."</h1>";
+    
 }
+
+echo checkUser($_SESSION);
 ?>
 <!DOCTYPE html>
 <html lang="en">
