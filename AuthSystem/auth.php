@@ -7,16 +7,16 @@ $capLetters = strtoupper($letters);
 $num = '123456789_';
 $dic = str_split($letters . $capLetters . $num);
 
-print_r(json_encode(handelData(array($_POST['auth'], $_POST['username'], $_POST['password'], $_POST['email'], $_POST['phone']), $conn, $dic)));
+print_r(json_encode(handelData(array($_POST['auth'], $_POST['username'], $_POST['password'], $_POST['type'], $_POST['data']), $conn, $dic)));
 
 function handelData($data, $db, $dic)
 {
     switch ($data[0]) {
         case 'login':
-            return login(array($data[1], md5($data[2]), ''), $db, $dic);
+            return login(array($data[1], $data[2], ''), $db, $dic);
             break;
         case 'register':
-            return register(array($data[1], md5($data[2]), $data[3], $data[4]), $db, $dic);
+            return register(array($data[1], $data[2], $data[3], $data[4]), $db, $dic);
             break;
 
         default:
@@ -26,7 +26,7 @@ function handelData($data, $db, $dic)
 }
 
 /*
-    @$user must be an array (userName : type string,email,phone)
+    @$user must be an array (userName : type string,contact:array(array(type,data)))
     
 */
 
@@ -38,7 +38,7 @@ function register($user, $db, $dic)
     
     $output =  null;
     
-    if (!userExist($user, $result)){
+    if (!userExist($user, $result) && !contactExist($user[3],$result)){
         createUser($user, $db);
         $output = array('registration' => 'success', 'registrationResult' => generateAuthKey($user[0],getUID($db,$user[0]) , $dic));
         return $output;
@@ -65,16 +65,16 @@ function login($user, $db, $dic)
     $output = '';
     $sql = 'SELECT * FROM users';
     $result = mysqliResultToArray(mysqli_query($db, $sql));
-    $output = userExist($user, $result) ? 'userExist' : array('login' => 'filed', 'loginResult' => 'user not exist!');
-    if ($output == 'userExist')
-        $output = array('loginResult' => checkPassword($result, $user[1]) ? generateAuthKey($user, getUID($db, $user[1]), $dic) : 'ERROR:PASSWORD');
+    $output = array('login' => 'filed', 'loginResult' => 'user not exist!');
+    if (userExist($user, $result))
+        $output = array('loginResult' => checkPassword($result, $user[1]) ? generateAuthKey($user[0], getUID($db, $user[0]), $dic) : 'ERROR:PASSWORD');
     return $output;
 }
 
 function checkPassword($row, $pass)
 {
     foreach ($row as $data) {
-        if ($data[1] == $pass)
+        if ($data[2] === md5( $pass))
             return true;
     }
     return false;
@@ -89,7 +89,7 @@ function createUser($data, mysqli $db)
 
     $username = $data[0];
     $password = md5($data[1]);
-    $contact = json_encode(array("email" => $data[2], "phone" => $data[3]));
+    $contact = json_encode(array(array("type" => $data[2], "data" => $data[3])));
     $pref = json_encode(array(array()));
     $friends = json_encode(array(array()));
     $inbox = json_encode(array(array()));
@@ -103,16 +103,27 @@ function createUser($data, mysqli $db)
 function getUID(mysqli $db, $user)
 {
 
-    return $db->query("SELECT id FROM users WHERE username = '$user'");
+    return( mysqliResultToArray($db->query("SELECT id FROM users WHERE username = '$user'"))[0][0]);
 }
 
 function userExist($given, $row)
 {
     
     foreach ($row as $data) {
-        
-        if ($data[1] === $given[0] || strpos($data[3], json_encode($given[2])))
+        if ($data[1] === $given[0])
             return true;
+    }
+
+    return false;
+}
+
+function contactExist($given,$row)
+{
+    foreach ($row as $value) {
+        foreach (json_decode( $value[3] ,true) as $key) {
+            if($key['data'] == $given)
+                return true;
+        }
     }
 
     return false;
@@ -138,7 +149,7 @@ function generateAuthKey($user, $id, $dic)
 
 
     $userPositions = getPositions(str_split($user), $dic);
-    $idPositions = getPositions(str_split($id), $dic);
+    $idPositions = getPositions(str_split(strval($id)), $dic);
 
     $validityTime = getPositions(str_split(floor(microtime(true) * 1000) + 24 * 3600 * 1000), $dic);
 
