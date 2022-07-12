@@ -35,10 +35,16 @@ function register($user, $db, $dic)
     $output = '';
     $sql = 'SELECT * FROM users';
     $result = mysqliResultToArray(mysqli_query($db, $sql));
-    $output = userExist($user, $result) ? array('registration' => 'filed', 'registrationResult' => 'username , email or phone number already used !') : 'newUser';
-    if ($output == 'newUser')
+    
+    $output =  null;
+    
+    if (!userExist($user, $result)){
         createUser($user, $db);
         $output = array('registration' => 'success', 'registrationResult' => generateAuthKey($user[0],getUID($db,$user[0]) , $dic));
+        return $output;
+    }
+    $output = array('registration' => 'filed', 'registrationResult' => 'username , email or phone number already used !');
+    
     return $output;
 }
 
@@ -78,7 +84,7 @@ function createUser($data, mysqli $db)
 {
     
     $userInsert = $db->prepare('INSERT INTO users(username,password,contact,preferences,friends,inbox,story) VALUES(?,?,?,?,?,?,?);');
-    echo $userInsert->error;
+    
     $userInsert->bind_param('sssssss', $username, $password, $contact, $pref, $friends, $inbox, $story);
 
     $username = $data[0];
@@ -102,8 +108,10 @@ function getUID(mysqli $db, $user)
 
 function userExist($given, $row)
 {
+    
     foreach ($row as $data) {
-        if ($data[0] === $given[0] || strpos($data[2], json_encode($given[2])))
+        
+        if ($data[1] === $given[0] || strpos($data[3], json_encode($given[2])))
             return true;
     }
 
@@ -115,7 +123,11 @@ function mysqliResultToArray($result)
     $hostArray = array();
     $k = 0;
     while ($row = mysqli_fetch_array($result)) {
-        $hostArray[$k] = $row;
+        $tarr = array();
+        for ($i=0; $i < count($row)/2; $i++) { 
+            $tarr[$i] = $row[strval($i)]; 
+        }
+        $hostArray[$k] = $tarr;
         $k++;
     }
     return $hostArray;
@@ -134,7 +146,7 @@ function generateAuthKey($user, $id, $dic)
     $decryptKey = array(9, -27);
 
     $treatedUser = encrypt($userPositions, $encryptKey);
-    $treatedid = encrypt($idPositions, $$encryptKey);
+    $treatedid = encrypt($idPositions, $encryptKey);
     $treatedTime = encrypt($validityTime, $encryptKey);
 
     return base64_encode(toChars($treatedUser, $dic) . ',' . toChars($treatedid, $dic) . ',' . toChars($treatedTime, $dic));
