@@ -7,6 +7,9 @@ $capLetters = strtoupper($letters) ;
 $num = '123456789_';
 $dic = str_split( $letters.$capLetters.$num );
 
+print_r(json_encode(handelData(array($_POST['auth'],$_POST['username'],$_POST['password'],$_POST['email'],$_POST['phone']),$mainDB,$dic)));
+
+
 function handelData($data,$db,$dic)
 {
     switch ($data[0]) {
